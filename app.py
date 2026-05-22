@@ -65,8 +65,10 @@ def predict():
             img_array = np.expand_dims(img_array, axis=0)
             preprocessed_img = tf.keras.applications.densenet.preprocess_input(img_array.copy())
             
-            # Predict
-            preds = model.predict(preprocessed_img)
+            # Predict using lightweight __call__ instead of heavy .predict()
+            preds_tensor = model(preprocessed_img, training=False)
+            preds = preds_tensor.numpy()
+            
             pred_class_idx = np.argmax(preds[0])
             pred_class = CLASSES[pred_class_idx]
             confidence = float(preds[0][pred_class_idx] * 100)
