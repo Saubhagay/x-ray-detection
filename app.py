@@ -28,35 +28,13 @@ if os.path.exists(MODEL_SAVE_PATH):
     # Load with compile=False to save memory (we don't need the optimizer for inference)
     model = tf.keras.models.load_model(MODEL_SAVE_PATH, compile=False)
     print("Model loaded.")
-    
-    # Pre-build Grad-CAM model globally to prevent memory leaks during prediction
-    print("Building Grad-CAM model...")
-    base_model = model.layers[0]
-    grad_model = tf.keras.models.Model(
-        base_model.inputs, [base_model.get_layer('relu').output, base_model.output]
-    )
 else:
     model = None
     print(f"WARNING: Model not found at {MODEL_SAVE_PATH}. Please train first.")
 
-def make_gradcam_heatmap(img_array, model, grad_model, pred_index=None):
-    with tf.GradientTape() as tape:
-        last_conv_layer_output, base_preds = grad_model(img_array)
-        x = base_preds
-        for layer in model.layers[1:]:
-            x = layer(x)
-        preds = x
-        if pred_index is None:
-            pred_index = tf.argmax(preds[0])
-        class_channel = preds[:, pred_index]
-
-    grads = tape.gradient(class_channel, last_conv_layer_output)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-    last_conv_layer_output = last_conv_layer_output[0]
-    heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
-    heatmap = tf.squeeze(heatmap)
-    heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
-    return heatmap.numpy()
+# Heatmap functionality disabled for Free Tier memory limits
+def make_gradcam_heatmap(*args, **kwargs):
+    pass
 
 @app.route('/', methods=['GET'])
 def index():
@@ -96,23 +74,12 @@ def predict():
             # All probabilities for chart
             probs = {CLASSES[i]: float(preds[0][i]*100) for i in range(len(CLASSES))}
 
-            # Grad-CAM
-            heatmap = make_gradcam_heatmap(preprocessed_img, model, grad_model, pred_class_idx)
-            
-            heatmap_resized = cv2.resize(heatmap, (IMG_WIDTH, IMG_HEIGHT))
-            heatmap_resized = np.uint8(255 * heatmap_resized)
-            heatmap_colormap = cv2.applyColorMap(heatmap_resized, cv2.COLORMAP_JET)
-            
-            superimposed_img = heatmap_colormap * 0.4 + img_resized
-            superimposed_img = np.clip(superimposed_img, 0, 255).astype('uint8')
-            superimposed_img = cv2.cvtColor(superimposed_img, cv2.COLOR_RGB2BGR) # For encoding
-            
-            # Convert Original and Heatmap to Base64 to return directly (Memory efficiency, no disk usage!)
+            # Convert Original to Base64
             _, orig_encoded = cv2.imencode('.jpg', cv2.cvtColor(img_resized, cv2.COLOR_RGB2BGR))
             orig_base64 = base64.b64encode(orig_encoded).decode('utf-8')
             
-            _, heatmap_encoded = cv2.imencode('.jpg', superimposed_img)
-            heatmap_base64 = base64.b64encode(heatmap_encoded).decode('utf-8')
+            # Disable Heatmap to save memory. Use original image as placeholder.
+            heatmap_base64 = orig_base64
 
             return jsonify({
                 'success': True,
