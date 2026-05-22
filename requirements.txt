@@ -1,0 +1,7 @@
+tensorflow-cpu>=2.10.0
+numpy
+opencv-python-headless
+flask
+werkzeug
+gunicorn
+flask-cors

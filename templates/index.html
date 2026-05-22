@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chest X-Ray Diagnostics</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Chart.js for probability charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Background Animated Orbs -->
+    <div class="background-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>Chest X-Ray <span class="highlight">AI Assistant</span></h1>
+            <p>Advanced Deep Learning Diagnostics using DenseNet121</p>
+        </header>
+
+        <main class="dashboard">
+            <!-- Upload Section -->
+            <section class="upload-section glass-panel">
+                <div class="drop-zone" id="drop-zone">
+                    <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <p>Drag and drop X-Ray image here</p>
+                    <p class="sub-text">or</p>
+                    <button class="btn-primary" onclick="document.getElementById('file-input').click()">Browse Files</button>
+                    <input type="file" id="file-input" hidden accept="image/*">
+                </div>
+                
+                <!-- Loading State -->
+                <div class="loading-state hidden" id="loading">
+                    <div class="spinner"></div>
+                    <p>AI is analyzing the scan...</p>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section glass-panel hidden" id="results-panel">
+                <h2>Diagnostic Report</h2>
+                
+                <div class="diagnosis-badge" id="diagnosis-badge">
+                    <span id="diagnosis-text">NORMAL</span>
+                    <span id="confidence-text">99%</span>
+                </div>
+                
+                <div class="image-comparison">
+                    <div class="img-box">
+                        <h3>Original X-Ray</h3>
+                        <img id="orig-img" src="" alt="Original Scan">
+                    </div>
+                    <div class="img-box">
+                        <h3>AI Heatmap (Grad-CAM)</h3>
+                        <img id="heatmap-img" src="" alt="Heatmap">
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="probChart"></canvas>
+                </div>
+                
+                <button class="btn-secondary" onclick="resetApp()">Analyze Another Scan</button>
+            </section>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Virtual Environment
+tf_env/
+
+# Datasets (Do not upload 2GB to GitHub!)
+dataset/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Mac OS
+.DS_Store
+
+
+# Results
+results/
