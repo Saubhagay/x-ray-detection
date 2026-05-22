@@ -16,16 +16,24 @@ app = Flask(__name__)
 # Allow CORS for all domains
 CORS(app)
 
-TFLITE_MODEL_PATH = "saved_models/model.tflite"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TFLITE_MODEL_PATH = os.path.join(BASE_DIR, "saved_models", "model.tflite")
 
 # Load the lightweight TFLite model globally
 print("Loading TFLite model...")
 if os.path.exists(TFLITE_MODEL_PATH):
-    interpreter = tflite.Interpreter(model_path=TFLITE_MODEL_PATH)
-    interpreter.allocate_tensors()
-    input_details = interpreter.get_input_details()
-    output_details = interpreter.get_output_details()
-    print("TFLite Model loaded successfully.")
+    try:
+        # Read the file directly into memory to bypass Linux path/C++ wrapper bugs
+        with open(TFLITE_MODEL_PATH, 'rb') as f:
+            model_content = f.read()
+        interpreter = tflite.Interpreter(model_content=model_content)
+        interpreter.allocate_tensors()
+        input_details = interpreter.get_input_details()
+        output_details = interpreter.get_output_details()
+        print("TFLite Model loaded successfully.")
+    except Exception as e:
+        interpreter = None
+        print(f"CRITICAL ERROR loading TFLite model: {e}")
 else:
     interpreter = None
     print(f"WARNING: Model not found at {TFLITE_MODEL_PATH}. Please run convert_to_tflite.py first.")
