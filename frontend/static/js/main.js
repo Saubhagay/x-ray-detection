@@ -5,9 +5,9 @@ const loadingState = document.getElementById('loading');
 const resultsPanel = document.getElementById('results-panel');
 
 // Update this to your deployed backend URL when deploying
-const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? 'http://localhost:5000' 
-    : 'https://your-render-backend-url.onrender.com';
+const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000'
+    : 'https://x-ray-backend.onrender.com';
 
 let probChartInstance = null;
 
@@ -35,7 +35,7 @@ dropZone.addEventListener('drop', (e) => {
     handleFiles(files);
 });
 
-fileInput.addEventListener('change', function() {
+fileInput.addEventListener('change', function () {
     handleFiles(this.files);
 });
 
@@ -58,20 +58,20 @@ function uploadFile(file) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            alert("Error: " + data.error);
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert("Error: " + data.error);
+                resetApp();
+                return;
+            }
+            displayResults(data);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("An error occurred during prediction. Please make sure the backend is running.");
             resetApp();
-            return;
-        }
-        displayResults(data);
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert("An error occurred during prediction. Please make sure the backend is running.");
-        resetApp();
-    });
+        });
 }
 
 function displayResults(data) {
@@ -104,7 +104,7 @@ function displayResults(data) {
 
 function renderChart(probs) {
     const ctx = document.getElementById('probChart').getContext('2d');
-    
+
     if (probChartInstance) {
         probChartInstance.destroy();
     }
