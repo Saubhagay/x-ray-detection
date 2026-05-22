@@ -25,16 +25,21 @@ CORS(app)
 # Load the AI model globally when the server starts
 print("Loading model for the web app...")
 if os.path.exists(MODEL_SAVE_PATH):
-    model = tf.keras.models.load_model(MODEL_SAVE_PATH)
+    # Load with compile=False to save memory (we don't need the optimizer for inference)
+    model = tf.keras.models.load_model(MODEL_SAVE_PATH, compile=False)
+    print("Model loaded.")
+    
+    # Pre-build Grad-CAM model globally to prevent memory leaks during prediction
+    print("Building Grad-CAM model...")
+    base_model = model.layers[0]
+    grad_model = tf.keras.models.Model(
+        base_model.inputs, [base_model.get_layer('relu').output, base_model.output]
+    )
 else:
     model = None
     print(f"WARNING: Model not found at {MODEL_SAVE_PATH}. Please train first.")
 
-def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
-    base_model = model.layers[0] 
-    grad_model = tf.keras.models.Model(
-        base_model.inputs, [base_model.get_layer(last_conv_layer_name).output, base_model.output]
-    )
+def make_gradcam_heatmap(img_array, model, grad_model, pred_index=None):
     with tf.GradientTape() as tape:
         last_conv_layer_output, base_preds = grad_model(img_array)
         x = base_preds
@@ -92,8 +97,7 @@ def predict():
             probs = {CLASSES[i]: float(preds[0][i]*100) for i in range(len(CLASSES))}
 
             # Grad-CAM
-            last_conv_layer = 'relu'
-            heatmap = make_gradcam_heatmap(preprocessed_img, model, last_conv_layer, pred_class_idx)
+            heatmap = make_gradcam_heatmap(preprocessed_img, model, grad_model, pred_class_idx)
             
             heatmap_resized = cv2.resize(heatmap, (IMG_WIDTH, IMG_HEIGHT))
             heatmap_resized = np.uint8(255 * heatmap_resized)
