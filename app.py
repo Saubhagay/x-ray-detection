@@ -1,11 +1,22 @@
 import os
+
+# Limit TensorFlow memory usage before importing
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' # Disable oneDNN to save memory
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1" # Force CPU only
+
 import base64
+import gc
 import numpy as np
 import tensorflow as tf
 import cv2
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from config import IMG_HEIGHT, IMG_WIDTH, CLASSES, MODEL_SAVE_PATH
+
+# Optimize TF threads to minimize memory footprint
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
 
 app = Flask(__name__)
 # Allow CORS for all domains, specifically helpful since frontend will be deployed separately
@@ -110,6 +121,9 @@ def predict():
         except Exception as e:
             print(f"Error during prediction: {e}")
             return jsonify({'error': str(e)}), 500
+        finally:
+            # Force garbage collection after prediction to free up RAM
+            gc.collect()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
