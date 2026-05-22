@@ -1,36 +1,34 @@
 import os
-
-# Limit TensorFlow memory usage before importing
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' # Disable oneDNN to save memory
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1" # Force CPU only
-
 import base64
 import gc
 import numpy as np
-import tensorflow as tf
 import cv2
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from config import IMG_HEIGHT, IMG_WIDTH, CLASSES, MODEL_SAVE_PATH
+from config import IMG_HEIGHT, IMG_WIDTH, CLASSES
 
-# Optimize TF threads to minimize memory footprint
-tf.config.threading.set_intra_op_parallelism_threads(1)
-tf.config.threading.set_inter_op_parallelism_threads(1)
+try:
+    import tflite_runtime.interpreter as tflite
+except ImportError:
+    import tensorflow.lite as tflite
 
 app = Flask(__name__)
-# Allow CORS for all domains, specifically helpful since frontend will be deployed separately
+# Allow CORS for all domains
 CORS(app)
 
-# Load the AI model globally when the server starts
-print("Loading model for the web app...")
-if os.path.exists(MODEL_SAVE_PATH):
-    # Load with compile=False to save memory (we don't need the optimizer for inference)
-    model = tf.keras.models.load_model(MODEL_SAVE_PATH, compile=False)
-    print("Model loaded.")
+TFLITE_MODEL_PATH = "saved_models/model.tflite"
+
+# Load the lightweight TFLite model globally
+print("Loading TFLite model...")
+if os.path.exists(TFLITE_MODEL_PATH):
+    interpreter = tflite.Interpreter(model_path=TFLITE_MODEL_PATH)
+    interpreter.allocate_tensors()
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+    print("TFLite Model loaded successfully.")
 else:
-    model = None
-    print(f"WARNING: Model not found at {MODEL_SAVE_PATH}. Please train first.")
+    interpreter = None
+    print(f"WARNING: Model not found at {TFLITE_MODEL_PATH}. Please run convert_to_tflite.py first.")
 
 # Heatmap functionality disabled for Free Tier memory limits
 def make_gradcam_heatmap(*args, **kwargs):
@@ -42,8 +40,8 @@ def index():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    if model is None:
-        return jsonify({'error': 'Model not loaded. Please train the model first.'}), 500
+    if interpreter is None:
+        return jsonify({'error': 'Model not loaded. Please convert the model to TFLite first.'}), 500
 
     if 'file' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
@@ -58,16 +56,21 @@ def predict():
             file_bytes = np.frombuffer(file.read(), np.uint8)
             img_cv = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
             
-            # Preprocess
+            # Preprocess manually without TensorFlow
             img_rgb = cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB)
             img_resized = cv2.resize(img_rgb, (IMG_WIDTH, IMG_HEIGHT))
-            img_array = tf.keras.preprocessing.image.img_to_array(img_resized)
-            img_array = np.expand_dims(img_array, axis=0)
-            preprocessed_img = tf.keras.applications.densenet.preprocess_input(img_array.copy())
             
-            # Predict using lightweight __call__ instead of heavy .predict()
-            preds_tensor = model(preprocessed_img, training=False)
-            preds = preds_tensor.numpy()
+            img_array = img_resized.astype(np.float32)
+            img_array /= 255.0
+            mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+            std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+            preprocessed_img = (img_array - mean) / std
+            preprocessed_img = np.expand_dims(preprocessed_img, axis=0)
+            
+            # Predict using ultra-lightweight TFLite
+            interpreter.set_tensor(input_details[0]['index'], preprocessed_img)
+            interpreter.invoke()
+            preds = interpreter.get_tensor(output_details[0]['index'])
             
             pred_class_idx = np.argmax(preds[0])
             pred_class = CLASSES[pred_class_idx]

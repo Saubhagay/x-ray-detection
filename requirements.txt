@@ -1,4 +1,4 @@
-tensorflow-cpu>=2.10.0
+tflite-runtime
 numpy
 opencv-python-headless
 flask
