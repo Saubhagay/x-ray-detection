@@ -7,10 +7,12 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from config import IMG_HEIGHT, IMG_WIDTH, CLASSES
 
-try:
-    import tflite_runtime.interpreter as tflite
-except ImportError:
-    import tensorflow.lite as tflite
+# Limit TensorFlow memory usage before importing
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+import tensorflow as tf
+import tensorflow.lite as tflite
 
 app = Flask(__name__)
 # Allow CORS for all domains
